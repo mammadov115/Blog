@@ -1,13 +1,18 @@
 from django.shortcuts import render,get_object_or_404
-from .models import Post
+from .models import Post,Comment
 from django.core.paginator import Paginator,EmptyPage,PageNotAnInteger
 from django.views.generic import ListView
-from .forms import EmailPostForm
+from .forms import EmailPostForm,CommentForm
 from django.core.mail import send_mail
-# Create your views here.
+from django.views.decorators.http import require_POST
+from taggit.models import Tag
  
-def post_list(request):
+def post_list(request,tag_slug=None):
     post_list = Post.published.all()
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag,slug=tag_slug)
+        post_list = Post.published.all()
     paginator = Paginator(post_list,2)
     page_number = request.GET.get('page',1)
 
@@ -18,11 +23,22 @@ def post_list(request):
     except PageNotAnInteger:
         posts = paginator.page(1)
 
-    return render(request,'blog/post/list.html',{'posts':posts})
+    context = {
+        'posts':posts,
+        'tag':tag
+    }
+    return render(request,'blog/post/list.html',context)
 
-def post_detail(request,year,month,day,post):
+def post_detail(request,year,month,day,post ):
     post = get_object_or_404(Post,status=Post.Status.PUBLISHED,slug=post,publish__year=year,publish__month=month,publish__day=day)
-    return render(request,'blog/post/detail.html',{'post':post})
+    comments = post.comments.filter(active=True)
+    form = CommentForm()
+    context = {
+        'post':post,
+        'comments':comments,
+        'form':form
+    }
+    return render(request,'blog/post/detail.html',context)
 
 class PostListView(ListView):
     queryset = Post.published.all()
@@ -37,9 +53,9 @@ def post_share(request,post_id):
         form = EmailPostForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            post_url = request.build_absolute.uri(post.get_absolute_url)
+            post_url = request.build_absolute_uri(post.get_absolute_url)
             subject = f"{cd['name']} recommends you read " f"{post.title}"
-            message = f"{cd['name']}'s comments: {cd['comments']}"
+            message = f"Read {post.title} at {post_url}\n\n {cd['name']}'s comments: {cd['comments']}"
             send_mail(subject,message,'mehmanmehman@gmail.com',[cd['to']])
             sent = True
         else:
@@ -54,5 +70,24 @@ def post_share(request,post_id):
         'sent':sent
     }
 
-    return render(request,'blog/post/share.html')
+    return render(request,'blog/post/share.html',context)
 
+@require_POST
+def post_comment(request,post_id):
+    post = get_object_or_404(Post,id=post_id,status=Post.Status.PUBLISHED)
+    comment = None
+    form = CommentForm(data=request.POST)
+    if form.is_valid():
+        # Create a Comment object without saving it to the database
+        comment = form.save(commit=False)
+        # Assign the post to the comment
+        comment.post = post
+        # Save the comment to the database
+        comment.save()
+
+    context  ={
+        'post':post,
+        'form':form,
+        'comment':comment
+    }
+    return render(request,'blog/post/comment.html',context)
