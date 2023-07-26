@@ -21,6 +21,7 @@ git clone https://github.com/your-username/Django-Blog-App.git
 ```
 
 2.  Create and activate a virtual environment:
+
 ``python -m venv env``
 
 ``source env/bin/activate  # On Windows, use: env\Scripts\activate``
