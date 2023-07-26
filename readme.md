@@ -22,9 +22,10 @@ git clone https://github.com/your-username/Django-Blog-App.git
 
 2.  Create and activate a virtual environment:
 
-``python -m venv env``
-
-``source env/bin/activate  # On Windows, use: env\Scripts\activate``
+```
+python -m venv env
+source env/bin/activate  # On Windows, use: env\Scripts\activate
+```
 
 3. Install Django and other required packages:
 ``pip install -r requirements.txt``
